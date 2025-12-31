@@ -1,0 +1,66 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: misskey-summary
+  labels:
+    app: misskey-summary
+spec:
+  # Run at 9:00 AM JST every day (0:00 UTC)
+  schedule: "0 0 * * *"
+  timeZone: "Asia/Tokyo"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: misskey-summary
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            fsGroup: 65534
+          containers:
+            - name: summarizer
+              image: ghcr.io/soli0222/misskey-summarizer:latest
+              args:
+                - "--yesterday"
+                - "--discord"
+              env:
+                - name: MISSKEY_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: misskey-summary-secrets
+                      key: misskey-token
+                - name: OPENAI_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: misskey-summary-secrets
+                      key: openai-api-key
+                - name: DISCORD_WEBHOOK_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: misskey-summary-secrets
+                      key: discord-webhook-url
+                - name: MISSKEY_INSTANCE_URL
+                  value: "https://mi.soli0222.com"
+                - name: TZ
+                  value: "Asia/Tokyo"
+              resources:
+                requests:
+                  memory: "64Mi"
+                  cpu: "50m"
+                limits:
+                  memory: "256Mi"
+                  cpu: "200m"
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL

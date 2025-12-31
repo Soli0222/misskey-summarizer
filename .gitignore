@@ -1,0 +1,19 @@
+# Binaries
+/misskey-summarizer
+
+# Dependencies
+vendor/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Test output
+coverage.out
+
+# Environment files
+.env
+.env.local
