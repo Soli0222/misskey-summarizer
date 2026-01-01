@@ -37,6 +37,10 @@ run-yesterday:
 docker-build:
 	docker build -t $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .
 
+# Test Docker build (build only, no push)
+docker-build-test:
+	docker build -t $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG)-test .
+
 # Push Docker image
 docker-push:
 	docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG)
@@ -55,14 +59,15 @@ lint:
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  build          - Build the binary"
-	@echo "  build-release  - Build optimized binary"
-	@echo "  clean          - Clean build artifacts"
-	@echo "  test           - Run tests"
-	@echo "  run            - Run the application"
-	@echo "  run-yesterday  - Run with --yesterday flag"
-	@echo "  docker-build   - Build Docker image"
-	@echo "  docker-push    - Push Docker image"
-	@echo "  docker-release - Build and push Docker image"
-	@echo "  fmt            - Format code"
-	@echo "  lint           - Lint code"
+	@echo "  build            - Build the binary"
+	@echo "  build-release    - Build optimized binary"
+	@echo "  clean            - Clean build artifacts"
+	@echo "  test             - Run tests"
+	@echo "  run              - Run the application"
+	@echo "  run-yesterday    - Run with --yesterday flag"
+	@echo "  docker-build     - Build Docker image"
+	@echo "  docker-build-test - Test Docker build (no push)"
+	@echo "  docker-push      - Push Docker image"
+	@echo "  docker-release   - Build and push Docker image"
+	@echo "  fmt              - Format code"
+	@echo "  lint             - Lint code"
