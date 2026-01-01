@@ -51,6 +51,8 @@ spec:
                   value: "https://mi.soli0222.com"
                 - name: TZ
                   value: "Asia/Tokyo"
+                - name: TZDIR
+                  value: "/usr/share/zoneinfo"
               resources:
                 requests:
                   memory: "64Mi"

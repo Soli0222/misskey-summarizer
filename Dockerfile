@@ -25,6 +25,9 @@ FROM scratch
 # Copy CA certificates
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
+# Copy timezone data
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+
 # Copy the binary
 COPY --from=builder /misskey-summarizer /misskey-summarizer
 
