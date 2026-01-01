@@ -6,8 +6,8 @@ ARG TARGETARCH
 
 WORKDIR /app
 
-# Install ca-certificates for HTTPS
-RUN apk --no-cache add ca-certificates
+# Install ca-certificates and timezone data for HTTPS and time handling
+RUN apk --no-cache add ca-certificates tzdata
 
 # Copy go mod files
 COPY go.mod go.sum ./
