@@ -17,6 +17,7 @@ var (
 	// Flags
 	dateStr       string
 	yesterday     bool
+	last24h       bool
 	outputFormat  string
 	postToDiscord bool
 
@@ -40,6 +41,7 @@ func Execute() error {
 func init() {
 	rootCmd.Flags().StringVarP(&dateStr, "date", "d", "", "Target date in YYYY-MM-DD format")
 	rootCmd.Flags().BoolVarP(&yesterday, "yesterday", "y", false, "Use yesterday's date")
+	rootCmd.Flags().BoolVarP(&last24h, "last24h", "l", false, "Use the last 24 hours from now")
 	rootCmd.Flags().StringVarP(&outputFormat, "output", "o", "summary", "Output format: summary or json")
 	rootCmd.Flags().BoolVar(&postToDiscord, "discord", false, "Post summary to Discord webhook")
 }
@@ -60,13 +62,17 @@ func runSummarizer(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	// Determine target date
-	targetDate, err := determineTargetDate(dateStr, yesterday)
+	// Determine target time range
+	startTime, endTime, err := determineTargetTimeRange(dateStr, yesterday, last24h)
 	if err != nil {
-		return fmt.Errorf("failed to determine target date: %w", err)
+		return fmt.Errorf("failed to determine target time range: %w", err)
 	}
 
-	log.Printf("Fetching notes for %s...", targetDate.Format("2006-01-02"))
+	if last24h {
+		log.Printf("Fetching notes from %s to %s...", startTime.Format("2006-01-02 15:04"), endTime.Format("2006-01-02 15:04"))
+	} else {
+		log.Printf("Fetching notes for %s...", startTime.Format("2006-01-02"))
+	}
 
 	// Create Misskey client and get user info
 	misskeyClient := misskey.NewClient(config.MisskeyInstanceURL, config.MisskeyToken)
@@ -77,8 +83,8 @@ func runSummarizer(cmd *cobra.Command, args []string) error {
 	}
 	log.Printf("Authenticated as: @%s", me.Username)
 
-	// Fetch notes for the target day
-	notes, err := misskeyClient.GetNotesForDay(me.ID, targetDate, true) // includeRenotes = true
+	// Fetch notes for the target time range
+	notes, err := misskeyClient.GetNotesForTimeRange(me.ID, startTime, endTime, true) // includeRenotes = true
 	if err != nil {
 		return fmt.Errorf("failed to fetch notes: %w", err)
 	}
@@ -100,7 +106,12 @@ func runSummarizer(cmd *cobra.Command, args []string) error {
 		openaiClient.WithModel(config.OpenAIModel)
 	}
 
-	dateFormatted := targetDate.Format("2006年1月2日")
+	var dateFormatted string
+	if last24h {
+		dateFormatted = fmt.Sprintf("%s 〜 %s", startTime.Format("1月2日 15:04"), endTime.Format("1月2日 15:04"))
+	} else {
+		dateFormatted = startTime.Format("2006年1月2日")
+	}
 	summary, err := openaiClient.SummarizeNotes(noteTexts, dateFormatted)
 	if err != nil {
 		return fmt.Errorf("failed to generate summary: %w", err)
@@ -110,7 +121,8 @@ func runSummarizer(cmd *cobra.Command, args []string) error {
 	switch outputFormat {
 	case "json":
 		output := map[string]interface{}{
-			"date":       targetDate.Format("2006-01-02"),
+			"start_time": startTime.Format(time.RFC3339),
+			"end_time":   endTime.Format(time.RFC3339),
 			"note_count": len(notes),
 			"summary":    summary,
 			"notes":      noteTexts,
@@ -163,20 +175,31 @@ func loadConfig() (*Config, error) {
 	return config, nil
 }
 
-// determineTargetDate determines the target date based on flags
-func determineTargetDate(dateStr string, useYesterday bool) (time.Time, error) {
+// determineTargetTimeRange determines the target time range based on flags
+func determineTargetTimeRange(dateStr string, useYesterday bool, useLast24h bool) (time.Time, time.Time, error) {
+	if useLast24h {
+		now := time.Now()
+		return now.Add(-24 * time.Hour), now, nil
+	}
+
+	var targetDate time.Time
 	if dateStr != "" {
 		parsed, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
 		if err != nil {
-			return time.Time{}, fmt.Errorf("invalid date format, use YYYY-MM-DD: %w", err)
+			return time.Time{}, time.Time{}, fmt.Errorf("invalid date format, use YYYY-MM-DD: %w", err)
 		}
-		return parsed, nil
+		targetDate = parsed
+	} else if useYesterday {
+		targetDate = time.Now().AddDate(0, 0, -1)
+	} else {
+		// Default to today
+		targetDate = time.Now()
 	}
 
-	if useYesterday {
-		return time.Now().AddDate(0, 0, -1), nil
-	}
+	// Get start and end of day
+	loc := targetDate.Location()
+	startOfDay := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 0, 0, 0, 0, loc)
+	endOfDay := startOfDay.Add(24 * time.Hour)
 
-	// Default to today
-	return time.Now(), nil
+	return startOfDay, endOfDay, nil
 }

@@ -135,6 +135,52 @@ func (c *Client) GetNotesForDay(userID string, date time.Time, includeRenotes bo
 	return allNotes, nil
 }
 
+// GetNotesForTimeRange fetches all notes for a specific time range
+func (c *Client) GetNotesForTimeRange(userID string, startTime, endTime time.Time, includeRenotes bool) ([]models.Note, error) {
+	sinceMs := startTime.UnixMilli()
+	untilMs := endTime.UnixMilli()
+
+	var allNotes []models.Note
+	var lastID string
+
+	for {
+		req := GetUserNotesRequest{
+			UserID:           userID,
+			WithReplies:      true,
+			WithRenotes:      includeRenotes,
+			WithChannelNotes: true,
+			Limit:            100,
+			SinceDate:        &sinceMs,
+			UntilDate:        &untilMs,
+		}
+
+		if lastID != "" {
+			req.SinceID = lastID
+		}
+
+		notes, err := c.GetUserNotes(req)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(notes) == 0 {
+			break
+		}
+
+		allNotes = append(allNotes, notes...)
+
+		// If we got fewer than limit, we've got all notes
+		if len(notes) < 100 {
+			break
+		}
+
+		// Use the last note's ID for pagination
+		lastID = notes[len(notes)-1].ID
+	}
+
+	return allNotes, nil
+}
+
 // post makes a POST request to the Misskey API
 func (c *Client) post(endpoint string, body interface{}) (*http.Response, error) {
 	var jsonBody []byte
