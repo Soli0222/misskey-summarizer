@@ -119,6 +119,8 @@ func runSummarizer(cmd *cobra.Command, args []string) error {
 
 	// Output results
 	switch outputFormat {
+	case "none":
+		log.Println("Output format set to 'none', skipping output")
 	case "json":
 		output := map[string]interface{}{
 			"start_time": startTime.Format(time.RFC3339),
